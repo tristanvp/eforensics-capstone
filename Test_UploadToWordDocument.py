@@ -5,13 +5,11 @@ from Test_FindHiddenFiles import hidden_files_and_properties
 template_path = 'Template_eForensicsAnalysisReport.docx'
 document = DocxTemplate(template_path)
 
-# Verify the content of hidden_files
-# print(hidden_files)  # Check if it contains valid data
-
 # Define data to export using a dictionary
 context = {
-    'investigated_device': "Jim's 256 terabyte hard drive",
-    'rows_hidden': hidden_files_and_properties  # Assuming hidden_files is a list of dictionaries
+    'investigated_device': "Jim's 256 terabyte hard drive", # Investigated device name can be replaced by a dynamic variable assuming Foren6 will employ custom user input
+
+    'rows_hidden': hidden_files_and_properties # Rows for each table to be generated through a list of dictionaries 
 }
 
 try:
