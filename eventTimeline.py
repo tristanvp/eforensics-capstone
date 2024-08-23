@@ -1,9 +1,6 @@
-#import json
-#import xml.etree.ElementTree as ET
-#from fpdf import FPDF 
-#from jinja2 import Template
 
 class EventTimeline:
+
     def __init__(self):
         # Constructor of the whole EventTimeline. Contains both Event and SusFile classes.
         # Note where Susfiles would be derived from Asher
@@ -30,6 +27,13 @@ class EventTimeline:
         print('\nSus Files')
         for sus_file in self.sus_files:
             print(sus_file)
+        print("\n")    
+    
+    def clear_timeline(self):
+        self.timelines.clear()
+
+    def clear_susfiles(self):
+        self.sus_files.clear()   
 
     # Above logic is for a class that creates EventTimline objects. Each containing a timeline and and array of sus files
     # Logic can hopefully be included in the report or as a txt file? lol
@@ -53,3 +57,6 @@ class SusFile:
         self.inode_number = inode_number
         self.mac_dates = mac_dates
         self.hash_value = hash_value
+
+    def __str__(self):
+        return f"Sus File: {self.file_name}, Inode Number: {self.inode_number}, Mac Dates: {self.mac_dates}, Hash Value: {self.hash_value}"
