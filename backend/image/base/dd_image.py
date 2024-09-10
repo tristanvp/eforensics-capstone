@@ -14,4 +14,4 @@ class DDImgInfo(pytsk3.Img_Info):
         return self._dd_file.read(size)
     
     def get_size(self):
-        return self._dd_file.get_media_size()
+        return self._dd_file.get_media_size() 

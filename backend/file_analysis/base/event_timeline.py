@@ -1,5 +1,5 @@
 
-class EventTimeline:
+class EventTimeline():
 
     def __init__(self):
         # Constructor of the whole EventTimeline. Contains both Event and SusFile classes.
