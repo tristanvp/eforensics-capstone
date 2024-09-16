@@ -1,9 +1,6 @@
 import hashlib
 
 class DriveHash:
-
-    #Abstracts the MD5 and SHA1 hashing methods away from 'image.py'
-    
     def __init__(self, file_path):
         self.file_path = file_path
 
@@ -20,4 +17,3 @@ class DriveHash:
             while chunk := f.read(8192):
                 hasher.update(chunk)
         return hasher.hexdigest()
-

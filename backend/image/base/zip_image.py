@@ -1,16 +1,30 @@
 import zipfile
-import io
 
 class ZIPImgInfo:
     def __init__(self, zip_path):
-        self._zip_file = zipfile.ZipFile(zip_path, 'r')
+        self.zip_path = zip_path
+        self._zip_file = None
+        self.open()  # Open the ZIP file when initializing
+
+    def open(self):
+        if not self._zip_file:
+            self._zip_file = zipfile.ZipFile(self.zip_path, 'r')
 
     def close(self):
-        self._zip_file.close()
+        if self._zip_file:
+            self._zip_file.close()
+            self._zip_file = None
 
-    def read(self, file_name):
-        with self._zip_file.open(file_name) as file:
-            return file.read()
+    def _has_partitions(self):
+        # ZIP files do not have partitions, so return False
+        return False
 
-    def get_size(self, file_name):
-        return self._zip_file.getinfo(file_name).file_size
+    def get_volume_size(self):
+        # Return the total size of the ZIP file
+        if self._zip_file:
+            return sum(info.file_size for info in self._zip_file.infolist())
+        return 0
+
+    def get_partition_count(self):
+        # ZIP files do not have partitions, so return 0
+        return 0

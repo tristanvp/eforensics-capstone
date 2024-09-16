@@ -1,39 +1,48 @@
 import pytsk3
-import os
 
-# DDImage base class
-# Added partion logic to abstract away from parent, 
-
-class DDImgInfo(pytsk3.Img_Info):
-    def __init__(self, dd_handle):
-        self._dd_handle = dd_handle
-        super(DDImgInfo, self).__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
-
-    def _parse_partitions(self):
-        #Detect and return a list of partitions for the raw DD image.
-        partition_table = pytsk3.Volume_Info(self)
-        partitions = []
-        for partition in partition_table:
-            if partition.len > 0:  # Valid partition
-                partitions.append({
-                    "index": partition.addr,
-                    "start": partition.start,
-                    "length": partition.len,
-                    "description": partition.desc.decode('utf-8'),
-                })
-
-        return partitions
+class DDImgInfo:
+    def __init__(self, file_path):
+        try:
+            # initialize the image file
+            self._image = pytsk3.Img_Info(file_path)
+            print("successfully initialized dd image.")
+            
+            # check for partitions
+            self._volume_info = None  # default to None in case no partitions are found
+            if self._has_partitions():
+                # try to access volume_info if partitions exist
+                try:
+                    self._volume_info = pytsk3.Volume_Info(self._image)
+                    print("successfully accessed volume information.")
+                except Exception as e:
+                    print(f"error accessing volume info: {e}")
+            else:
+                print("no partitions found in the image file.")
+                
+        except Exception as e:
+            raise RuntimeError(f"failed to initialize image: {e}")
     
-    def get_partitions(self):
-        # Return partition data 
-        return self.partitions
+    def _has_partitions(self):
+        # check if the image contains partitions by attempting to read partition data
+        try:
+            partitions = pytsk3.Volume_Info(self._image)
+            for _ in partitions:  # try to iterate over partitions
+                return True  # if any partition is found, return true
+        except Exception as e:
+            print(f"error while checking for partitions: {e}")
+        return False  # no partitions found
     
-    def close(self):
-        self._dd_file.close()
-
-    def read(self, offset, size):
-        self._dd_file.seek(offset)
-        return self._dd_file.read(size)
+    def get_volume_info(self):
+        # return the volume_info object if partitions exist and volume info is accessible
+        return self._volume_info
     
-    def get_size(self):
-        return os.path.getsize(self._dd_handle.name) 
+    def get_partition_count(self):
+        # count the number of partitions in the image file if volume_info is available
+        if self._volume_info:
+            try:
+                partitions = self._volume_info
+                partition_count = sum(1 for _ in partitions)
+                return partition_count
+            except Exception as e:
+                raise RuntimeError(f"failed to get partition count: {e}")
+        return 0
