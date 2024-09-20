@@ -1,7 +1,6 @@
 from backend.utility.filesystem import FileSystem
-import os
-import struct
-import datetime
+import os, struct, datetime
+
 
 class SusFilesDiscovery:
     def __init__(self, fs: FileSystem):
@@ -28,9 +27,11 @@ class SusFilesDiscovery:
 
     def process_dollar_i(self, dollar_i_files):
         for dollar_i in dollar_i_files:
+            # Interpret file metadata
             file_attribs = self.validate_dollar_i(dollar_i[3])
             if file_attribs is None:
                 continue
+            # Get the $R file
             file_attribs['dollar_i_file'] = os.path.join('/$Recycle.bin', dollar_i[2][1:])
             recycle_file_path = os.path.join('/$Recycle.bin', dollar_i[1].rsplit("/", 1)[0][1:])
             dollar_r_files = self.fs.recurse_files(substring='$R' + dollar_i[0][2:], path=recycle_file_path, logic='startswith', case=False)
@@ -50,6 +51,7 @@ class SusFilesDiscovery:
             self.suspicious_files.append(file_attribs)
 
     def sizeof_fmt(self, num, suffix='B'):
+        # From https://stackoverflow.com/a/1094933/3194812
         for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
             if abs(num) < 1024.0:
                 return "%3.1f%s%s" % (num, unit, suffix)
@@ -63,10 +65,10 @@ class SusFilesDiscovery:
 
     def validate_dollar_i(self, file_obj):
         if file_obj.read_random(0, 8) != b'\x01\x00\x00\x00\x00\x00\x00\x00':
-            return None
+            return None # Invalid file
         raw_file_size = struct.unpack('<q', file_obj.read_random(8, 8))
         raw_deleted_time = struct.unpack('<q', file_obj.read_random(16, 8))
-        raw_file_path = file_obj.read_random(24, 520)
+        raw_file_path = file_obj.read_random(24, 520)  # assumes this disk is prior to Windows 10: https://medium.com/@thismanera/windows-recycle-bin-forensics-a2998c9a4d3e
         file_size = self.sizeof_fmt(raw_file_size[0])
         deleted_time = self.parse_windows_filetime(raw_deleted_time[0])
         file_path = raw_file_path.decode("utf16").strip("\x00")
