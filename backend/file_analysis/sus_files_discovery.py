@@ -24,6 +24,8 @@ class SusFilesDiscovery:
         dollar_i_files = self.fs.recurse_files(substring='$I', path='/$Recycle.bin', logic='startswith', case=False)
         if dollar_i_files:
             self.process_dollar_i(dollar_i_files)
+        else:
+            print("No $I Files found.")
 
     def process_dollar_i(self, dollar_i_files):
         for dollar_i in dollar_i_files:
