@@ -1,4 +1,7 @@
-import jpg_carver, pdf_carver, zip_carver
+
+from backend.file_analysis.file_carver.jpg_carver import *
+from backend.file_analysis.file_carver.pdf_carver import *
+from backend.file_analysis.file_carver.zip_carver import *
 
 class FileCarver:
     def __init__(self, filename, output_dir):
@@ -6,6 +9,6 @@ class FileCarver:
         self.output_dir = output_dir
 
     def carve(self):
-        jpg_carver.jpg_carve(self.filename, self.output_dir)
-        pdf_carver.pdf_carve(self.filename, self.output_dir)
-        zip_carver.zip_carve(self.filename, self.output_dir)
+        jpg_carve(self.filename, self.output_dir)
+        pdf_carve(self.filename, self.output_dir)
+        zip_carve(self.filename, self.output_dir)
