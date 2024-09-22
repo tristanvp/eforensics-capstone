@@ -13,23 +13,26 @@ def main(image, img_type, part_type):
     # SusFile call
     sus_files_discovery = SusFilesDiscovery(fs_handler)
     discovered_files = sus_files_discovery.run()
-    
+
+    # Discovered Files call
     print("Discovered Files:")
     for file_info in discovered_files:
         print(file_info)
     
+    # Partitions call (High level)
     partitions = fs_handler.list_partitions()
     print("Partitions:")
     for partition in partitions:
         print(partition)
-    
     print("Length of partitions: " + str(len(partitions)))
-    
+
+    # Mounting logic for files w/o partitions 
     if len(partitions) == 1:
         MountManager(image).mount_single("/mnt")
     else:
         MountManager(image).mount_multi("/mnt", len(partitions), partitions)
 
+    # Main call w/ ArgParse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
