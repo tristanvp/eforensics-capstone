@@ -1,5 +1,5 @@
 import os
-from supporters import supporter
+from backend.file_analysis.file_carver.utils import *
 
 def find_jpeg_headers(data, markers):
     """Find all occurrences of JPEG markers in the data.
@@ -67,7 +67,7 @@ def detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_
                             sof_stack.pop()
                             continue
                     file_data = data[sof_stack[-1]:memory_counter + eof_mem_bytes]
-                    supporter.save_carved_file(file_data, output_dir, sof_stack[-1], output_file_type)
+                    save_carved_file(file_data, output_dir, sof_stack[-1], output_file_type)
                     sof_stack.pop()
 
 def detect_jpeg_files(data, filename, offsets, output_dir):
@@ -78,19 +78,8 @@ def detect_jpeg_files(data, filename, offsets, output_dir):
     output_file_type = "jpg"
     detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_file_type, output_dir, offsets)
 
-
-# this function reads a binary file and stores its data for further use
-def read_file(filename):
-    if os.path.isfile(filename):
-        with open(filename, "rb") as binary_file:
-            data = binary_file.read()
-        return data
-    else:
-        print("File not found")
-        exit()
-
-
 def jpg_carve(filename, output_dir):
+    print("Starting JPG Carving: ")
     data = read_file(filename)
     cluster_sizes = [512, 1024, 2048, 4096, 8192]
     markers = [b'\xFF\xD8', b'\xFF\xE0', b'\xFF\xE1',
@@ -99,5 +88,4 @@ def jpg_carve(filename, output_dir):
     possible_starting_offsets = []
     for value in results.values():
         possible_starting_offsets += value
-    print(possible_starting_offsets)
     detect_jpeg_files(data, filename, possible_starting_offsets, output_dir)

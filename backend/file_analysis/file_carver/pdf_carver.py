@@ -1,5 +1,4 @@
-import os, sys, hashlib
-from supporters import supporter
+from backend.file_analysis.file_carver.utils import *
 
 """
 link to the research: https://eudl.eu/pdf/10.1007/978-3-642-19513-6_12
@@ -65,7 +64,7 @@ def detect_pdf_files(data, output_dir, user_specified_size=1000000):
         if file_size:
             print(f"Carving linearized PDF of size {file_size} bytes.")
             carved_data = data[header_offset:header_offset + file_size]
-            supporter.save_carved_file(carved_data, output_dir, header_offset, 'pdf')
+            save_carved_file(carved_data, output_dir, header_offset, 'pdf')
             return
         else:
             print("Unable to determine file size from linearized data.")
@@ -76,15 +75,15 @@ def detect_pdf_files(data, output_dir, user_specified_size=1000000):
         print("PDF footer not found. Searching until user-specified file size is reached.")
         if user_specified_size:
             carved_data = data[header_offset:header_offset + user_specified_size]
-            supporter.save_carved_file(carved_data, output_dir, header_offset, 'pdf')
+            save_carved_file(carved_data, output_dir, header_offset, 'pdf')
         else:
             print("No user-specified size provided.")
     else:
         carved_data = data[header_offset:footer_offset + len(b'%%EOF')]
-        supporter.save_carved_file(carved_data, output_dir, header_offset, 'pdf')
+        save_carved_file(carved_data, output_dir, header_offset, 'pdf')
 
 # Example usage
 def pdf_carve(filename, output_dir):
-    with open(filename, 'rb') as f:
-        data = f.read()
+    print("Starting PDF Carving: ")
+    data = read_file(filename)
     detect_pdf_files(data, output_dir)
