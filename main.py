@@ -32,7 +32,6 @@ def main(image, img_type, part_type):
     else:
         MountManager(image).mount_multi("/mnt", len(partitions), partitions)
 
-    # Main call w/ ArgParse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
@@ -47,3 +46,4 @@ if __name__ == '__main__':
     else:
         print("[-] Supplied input file {} does not exist or is not a file".format(args.EVIDENCE_FILE))
         sys.exit(1)
+

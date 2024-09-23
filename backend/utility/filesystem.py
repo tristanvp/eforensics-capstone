@@ -97,18 +97,7 @@ class FileSystem:
                         'ending_offset': ending_offset,
                         'type': self._TSK_FS_TYPE_MAP.get(fs.info.ftype, "Unknown").lower()
                     })
-        else:
-            try:
-                fs = pytsk3.FS_Info(self.img_handle)
-            except IOError:
-                _, e, _ = sys.exc_info()
-                print(f"[-] Unable to open FS:\n {e}")
-            partitions.append({
-                'partition': 0,
-                'offset': 0,
-                'type': self._TSK_FS_TYPE_MAP.get(fs.info.ftype, "Unknown").lower()
-            })
-        
+                    
         return partitions
 
     def open_fs(self):
@@ -128,7 +117,7 @@ class FileSystem:
                 _, e, _ = sys.exc_info()
                 print(f"[-] Unable to open FS:\n {e}") 
     
-    def recurse_files(self, substring: str, path="/", logic="contains", case=False) -> list:
+    def recurse_files(self, substring="", path="/", logic="contains", case=False) -> list:
         files = []
         for i, fs in enumerate(self.fs):
             try:
@@ -162,55 +151,62 @@ class FileSystem:
                     f_type = "FILE"
                     file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
                 
-                size = fs_object.info.meta.size
-                access = self.convert_time(fs_object.info.meta.atime)
-                create = self.convert_time(fs_object.info.meta.crtime)
-                modify = self.convert_time(fs_object.info.meta.mtime)
-                
+                file_info = {
+                    "Partition": part,
+                    "File Name": file_name, 
+                    "File Path": file_path,
+                    "FS Object": fs_object, 
+                    "File Extension": file_ext, 
+                    "Modified Date": self.convert_time(fs_object.info.meta.mtime), 
+                    "Accessed Date": self.convert_time(fs_object.info.meta.atime),
+                    "Created Date": self.convert_time(fs_object.info.meta.crtime),
+                    "Size": fs_object.info.meta.size
+                    
+                }
                 
                 if (substring):
                     if f_type == "FILE":
                         if logic.lower() == 'contains':
                             if case is False:
                                 if substring.lower() in file_name.lower():
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                             else:
                                 if substring in file_name:
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                         elif logic.lower() == 'startswith':
                             if case is False:
                                 if file_name.lower().startswith(substring.lower()):
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                             else:
                                 if file_name.startswith(substring):
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                         elif logic.lower() == 'endswith':
                             if case is False:
                                 if file_name.lower().endswith(substring.lower()):
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                             else:
                                 if file_name.endswith(substring):
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                         elif logic.lower() == 'equal':
                             if case is False:
                                 if substring.lower() == file_name.lower():
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                             else:
                                 if substring == file_name:
-                                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                                    data.append(file_info)
                                     continue
                         else:
                             sys.stderr.write("[-] Warning invalid logic {} provided\n".format(logic))
                             sys.exit()
                 else:
-                    data.append((f"PARTITION {part}", file_name, file_path, fs_object, file_ext, modify, access, create, size))
+                    data.append(file_info)
 
                 if f_type == "DIR":
                     parent.append(fs_object.info.name.name)

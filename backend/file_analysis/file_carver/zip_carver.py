@@ -1,7 +1,5 @@
-import re
-import struct
-import os
-from supporters import supporter
+import struct, re
+from backend.file_analysis.file_carver.utils import *
 
 def find_zip_signatures(data):
     # ZIP local file header signature (PK\x03\x04)
@@ -38,9 +36,8 @@ def extract_zip_files(data, local_file_headers, end_central_dirs):
     return zip_files, offsets
 
 def zip_carve(filename, output_dir):
-    with open(filename, 'rb') as f:
-        data = f.read()
-
+    print("Starting ZIP Carving: ")
+    data = read_file(filename)
     local_file_headers, _, end_central_dirs = find_zip_signatures(data)
     
     if not local_file_headers or not end_central_dirs:
@@ -51,4 +48,4 @@ def zip_carve(filename, output_dir):
 
     for i, zip_file in enumerate(zip_files):
         starting_offset = starting_offsets[i]
-        supporter.save_carved_file(zip_file, output_dir, starting_offset, "zip")
+        save_carved_file(zip_file, output_dir, starting_offset, "zip")
