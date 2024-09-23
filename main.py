@@ -1,6 +1,5 @@
 from __future__ import print_function
 import argparse
-from datetime import datetime
 import os
 import sys
 from backend.utility.image_mount import *
@@ -8,18 +7,30 @@ from backend.utility.filesystem import *
 from backend.file_analysis.sus_files_discovery import *
 
 def main(image, img_type, part_type):
+    # Main Setup
     fs_handler = FileSystem(image, img_type, part_type)
+
+    # SusFile call
     sus_files_discovery = SusFilesDiscovery(fs_handler)
-    sus_files_discovery.run()
+    discovered_files = sus_files_discovery.run()
+
+    # Discovered Files call
+    print("Discovered Files:")
+    for file_info in discovered_files:
+        print(file_info)
     
+    # Partitions call (High level)
     partitions = fs_handler.list_partitions()
-    print(partitions)
+    print("Partitions:")
+    for partition in partitions:
+        print(partition)
     print("Length of partitions: " + str(len(partitions)))
-    if (len(partitions) == 1):
+
+    # Mounting logic for files w/o partitions 
+    if len(partitions) == 1:
         MountManager(image).mount_single("/mnt")
     else:
         MountManager(image).mount_multi("/mnt", len(partitions), partitions)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -33,6 +44,6 @@ if __name__ == '__main__':
     if os.path.exists(args.EVIDENCE_FILE) and os.path.isfile(args.EVIDENCE_FILE):
         main(args.EVIDENCE_FILE, args.TYPE, args.p)
     else:
-        print("[-] Supplied input file {} does not exist oris not a "
-              "file".format(args.EVIDENCE_FILE))
+        print("[-] Supplied input file {} does not exist or is not a file".format(args.EVIDENCE_FILE))
         sys.exit(1)
+
