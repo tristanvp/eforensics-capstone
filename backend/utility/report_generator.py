@@ -4,12 +4,12 @@ from docxtpl import DocxTemplate
 
 class ReportGenerator:
     def __init__(self, template_path, output_path):
-        # Initialize the ReportGenerator with the template path and output path.
+        # Initialise the ReportGenerator with the template path and output path
         self.template_path = template_path
         self.output_path = output_path
 
     def generate_report(self, context):
-        # General method to generate a report using a given context (hidden files, renamed files, etc.).
+        # Method to generate a report using given context dictionary in main
         try:
             # Load the template
             document = DocxTemplate(self.template_path)

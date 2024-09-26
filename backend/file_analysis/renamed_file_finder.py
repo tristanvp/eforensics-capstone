@@ -3,42 +3,33 @@ import io
 import pytsk3
 import filetype
 from .metadata_extractor import MetadataExtractor
+from backend.utility.filesystem import FileSystem
 
 class RenamedFileFinder:
-    def __init__(self, image_file):
-        self.image_file = image_file
-        self.file_counter = 1  # Global file counter for numbering
-
-    # Function to open the disk image and go through its file system
-    def open_image(self):
-        img = pytsk3.Img_Info(self.image_file)
-        fs = pytsk3.FS_Info(img)
-        root_dir = fs.open_dir(path="/")
-        return fs, root_dir
+    def __init__(self, fs: FileSystem):
+        self.fs = fs
+        self.file_counter = 1  # Global file counter for table formatting
 
     # Fallback file signature guessing for specific file types
     def fallback_filetype(self, file_data, file_name):
         ext = os.path.splitext(file_name)[1].lower()
-        if ext == ".jpg":
-            return "image/jpeg"
-        elif ext == ".rtf":
-            return "application/rtf"
-        elif ext == ".log":
-            return "text/plain"
-        elif ext == ".ini":
-            return "text/plain"
-        elif ext == ".dat":
-            return "application/octet-stream"
-        elif ext == ".dll":
-            return "application/x-msdownload"
-        return None
+        # Return the appropriate MIME type for the known extensions
+        fallback_mime_types = {
+            ".jpg": "image/jpeg",
+            ".log": "text/plain",
+            ".ini": "text/plain",
+            ".rtf": "application/rtf",
+            ".dat": "application/octet-stream",
+            ".dll": "application/x-msdownload"
+        }
+        return fallback_mime_types.get(ext, None)
 
-    # Function to check the file signature vs file extension
-    def check_file_signature(self, entry, file_name, file_path):
+    # Check file signature and compare it to the file extension
+    def check_file_signature(self, entry, file_name):
         try:
             file_data = entry.read_random(0, entry.info.meta.size)
-
             kind = filetype.guess(io.BytesIO(file_data))
+
             if kind is None:
                 kind = self.fallback_filetype(file_data, file_name)
                 if kind is None:
@@ -50,20 +41,15 @@ class RenamedFileFinder:
             file_ext = os.path.splitext(file_name)[1].lower()
             true_ext = mime.split('/')[-1]
 
-            # Return mismatched file details if extension doesn't match
+            # Return true extension if there is a mismatch
             if not file_ext.endswith(true_ext):
-                return {
-                    'file_name': file_name,
-                    'file_path': file_path,
-                    'file_ext': file_ext,
-                    'true_ext': true_ext
-                }
+                return true_ext
 
         except Exception as e:
             print(f"Error reading file {file_name}: {e}")
             return None
 
-    # Function to traverse the directory and process each file
+    # Traverse directory and collect metadata for mismatched files
     def traverse_directory(self, fs, directory, current_path="", visited_inodes=set(), renamed_files=[]):
         for entry in directory:
             if not hasattr(entry, "info") or not hasattr(entry.info, "name") or not entry.info.name.name:
@@ -72,10 +58,7 @@ class RenamedFileFinder:
             file_name = entry.info.name.name.decode("utf-8")
 
             # Skip special files (like $MFT, $Bitmap, etc.)
-            if file_name.startswith("$"):
-                continue
-
-            if entry.info.meta is None:
+            if file_name.startswith("$") or entry.info.meta is None:
                 continue
 
             inode = entry.info.meta.addr
@@ -85,16 +68,17 @@ class RenamedFileFinder:
 
             file_path = os.path.join(current_path, file_name)
 
+            # If its a regular file, check the signature
             if entry.info.meta.type == pytsk3.TSK_FS_META_TYPE_REG:
-                mismatched_file = self.check_file_signature(entry, file_name, file_path)
-                if mismatched_file:
-                    # Instantiate the MetadataExtractor class to extract metadata
-                    file_obj = MetadataExtractor(entry, file_path, self.file_counter)
-                    file_metadata = file_obj.extract_metadata(true_extension=mismatched_file['true_ext'])
+                true_extension = self.check_file_signature(entry, file_name)
+                if true_extension:
+                    # Extract metadata for report prep 
+                    file_metadata = MetadataExtractor(entry, file_path, self.file_counter).extract_metadata(true_extension=true_extension)
                     if file_metadata:
                         renamed_files.append(file_metadata)
-                    self.file_counter += 1  # Increment global file number
+                    self.file_counter += 1
 
+            # If its a directory, recurse into it
             elif entry.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
                 try:
                     sub_directory = entry.as_directory()
@@ -106,7 +90,6 @@ class RenamedFileFinder:
 
     # Run function to start the process
     def run(self):
-        fs, root_dir = self.open_image()
-        renamed_files = self.traverse_directory(fs, root_dir)
-
+        fs, root_directory = self.open_image()
+        renamed_files = self.traverse_directory(fs, root_directory)
         return renamed_files
