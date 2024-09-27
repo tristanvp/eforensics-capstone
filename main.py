@@ -5,6 +5,7 @@ import sys
 from backend.utility.image_mount import *
 from backend.utility.filesystem import *
 from backend.file_analysis.sus_files_discovery import *
+from backend.file_analysis.keyword import *
 
 def main(image, img_type, part_type):
     # Main Setup
@@ -31,6 +32,14 @@ def main(image, img_type, part_type):
         MountManager(image).mount_single("/mnt")
     else:
         MountManager(image).mount_multi("/mnt", len(partitions), partitions)
+
+    try:
+        # Keyword search
+        searcher = FileSearcher('/mnt')
+        matches = searcher.search_keyword('/mnt', 'bin')
+        print(f"Files containing 'bin': {matches}")
+    except Exception as e:
+        print(f"Error in keyword searching: {e}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
