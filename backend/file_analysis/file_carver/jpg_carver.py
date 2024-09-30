@@ -46,6 +46,7 @@ def predict_cluster_size(data, cluster_sizes, markers):
 
 # this function takes written arguments and carves the files based on input
 def detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_file_type, output_dir, offsets):
+    carved_files = []
     with open(filename, "rb") as binary_file:
         sof_stack = list()  # stack to store SOFs
         file_byte = binary_file.read(1)
@@ -67,8 +68,9 @@ def detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_
                             sof_stack.pop()
                             continue
                     file_data = data[sof_stack[-1]:memory_counter + eof_mem_bytes]
-                    save_carved_file(file_data, output_dir, sof_stack[-1], output_file_type)
+                    carved_files.append(save_carved_file(file_data, output_dir, sof_stack[-1], output_file_type))
                     sof_stack.pop()
+    return carved_files
 
 def detect_jpeg_files(data, filename, offsets, output_dir):
     sof = b'\xff\xd8\xff'
@@ -76,10 +78,11 @@ def detect_jpeg_files(data, filename, offsets, output_dir):
     sof_mem_bytes = 3
     eof_mem_bytes = 2
     output_file_type = "jpg"
-    detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_file_type, output_dir, offsets)
+    carved_files = detect_files(data, filename, sof, eof, sof_mem_bytes, eof_mem_bytes, output_file_type, output_dir, offsets)
+    return carved_files
 
 def jpg_carve(filename, output_dir):
-    print("Starting JPG Carving: ")
+    print("[+] Starting JPG Carving: ")
     data = read_file(filename)
     cluster_sizes = [512, 1024, 2048, 4096, 8192]
     markers = [b'\xFF\xD8', b'\xFF\xE0', b'\xFF\xE1',
@@ -88,4 +91,5 @@ def jpg_carve(filename, output_dir):
     possible_starting_offsets = []
     for value in results.values():
         possible_starting_offsets += value
-    detect_jpeg_files(data, filename, possible_starting_offsets, output_dir)
+    return detect_jpeg_files(data, filename, possible_starting_offsets, output_dir)
+    

@@ -1,6 +1,7 @@
 import pytsk3, pyewf
-import sys
+import sys, os, time
 from datetime import datetime
+from definitions import ROOT_DIR
 from backend.image.ewf_image import EWFImgInfo
 
 
@@ -36,11 +37,13 @@ class FileSystem:
         self.img_handle = None
         self.volume = None
         self.fs = []
+        self.unallocated_parts = []
         self.run()
         
     def run(self):
         self.create_handle()
         self.create_volume()
+        self.extract_unallocated_part_data()
         self.open_fs()
         
     def is_valid_partition(self, part: pytsk3.TSK_VS_PART_INFO) -> bool:
@@ -48,6 +51,37 @@ class FileSystem:
         return part.len > 2048 and "Unallocated"not in part_desc and \
                         "Extended" not in part_desc and \
                         "Primary Table" not in part_desc
+                        
+    # this function checks if the partition is unallocated -> used for file carving
+    def is_unallocated_partition(self, part: pytsk3.TSK_VS_PART_INFO) -> bool:
+        part_desc = part.desc.decode("utf-8")
+        return "Unallocated" in part_desc 
+    
+    def extract_unallocated_part_data(self, output_dir="images"):
+        unallocated_counter = 0
+        output_dir = f"{ROOT_DIR}/{output_dir}"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        if self.volume:
+            for part in self.volume:
+                # Check if the partition is unallocated
+                if self.is_unallocated_partition(part):
+                    print(f"Unallocated space found: Start: {part.start}, Length: {part.len}")
+                    
+                    # Extract the unallocated space
+                    filename = f"{os.path.basename(self.image)}_unallocated_{unallocated_counter}"
+                    file_path = os.path.join(output_dir, filename)
+                    
+                    with open(file_path, 'wb') as output:
+                        offset = part.start * self.volume.info.block_size
+                        length = part.len * self.volume.info.block_size
+                        unallocated_data = self.img_handle.read(offset, length) 
+                        output.write(unallocated_data)
+                    unallocated_counter += 1  
+                    print(f"Unallocated space written to {file_path}")
+                    self.unallocated_parts.append(file_path)
+
+    print("No unallocated space found")
 
     def create_handle(self):
         print("[+] Opening {}".format(self.image))
@@ -76,7 +110,9 @@ class FileSystem:
                 self.volume = pytsk3.Volume_Info(self.img_handle)
         except IOError:
             _, e, _ = sys.exc_info()
-            print("[-] Unable to read partition table:\n {}".format(e))
+            exception, *others = e.args
+            if ("null" in exception):
+                print("[-] Image has 1 partition")
         
     def list_partitions(self):
         partitions = []
@@ -109,13 +145,19 @@ class FileSystem:
                         self.fs.append(pytsk3.FS_Info(self.img_handle, offset=part.start * self.volume.info.block_size))
                     except IOError:
                         _, e, _ = sys.exc_info()
-                        print(f"[-] Unable to open FS:\n {e}")          
+                        print(f"[-] Unable to open FS:\n {e}")         
         else:
             try:
-                self.fs.append(pytsk3.FS_Info(self.img_handle)) 
+                self.fs.append(pytsk3.FS_Info(self.img_handle, offset=0)) 
             except IOError:
                 _, e, _ = sys.exc_info()
-                print(f"[-] Unable to open FS:\n {e}") 
+                exception, *others = e.args
+                if "entropy" in exception:
+                    print("[-] Possible encryption detected OR This file is a data stream instead of a filesystem")
+                    print("[!] File carving would be performed on this file")
+                    self.unallocated_parts.append(self.image)
+                else:
+                    print(exception)
     
     def recurse_files(self, substring="", path="/", logic="contains", case=False) -> list:
         files = []
@@ -131,7 +173,6 @@ class FileSystem:
         else:
             return files
         
-    
     def recurse_dir(self, part: int, fs: pytsk3.FS_Info, root_dir: pytsk3.Directory, dirs: list, data: list, parent: list, substring=None, logic=None, case=False):
         parent = [p.decode("utf-8") if isinstance(p, bytes) else p for p in parent]
         dirs.append(root_dir.info.fs_file.meta.addr)
@@ -139,11 +180,13 @@ class FileSystem:
             if not hasattr(fs_object, "info") or \
                     not hasattr(fs_object.info, "name") or \
                     not hasattr(fs_object.info.name, "name") or \
-                    fs_object.info.name.name in [".", ".."]:
+                    fs_object.info.name.name.decode("utf-8") in [".", ".."] or \
+                    fs_object.info.meta is None:
                 continue
             try:
                 file_name = fs_object.info.name.name.decode("utf-8")
                 file_path = f"{'/'.join(parent)}/{file_name}"
+                        
                 if fs_object.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
                     f_type = "DIR"
                     file_ext = ""
@@ -157,11 +200,10 @@ class FileSystem:
                     "File Path": file_path,
                     "FS Object": fs_object, 
                     "File Extension": file_ext, 
-                    "Modified Date": self.convert_time(fs_object.info.meta.mtime), 
-                    "Accessed Date": self.convert_time(fs_object.info.meta.atime),
-                    "Created Date": self.convert_time(fs_object.info.meta.crtime),
-                    "Size": fs_object.info.meta.size
-                    
+                    "Modified Date": time.ctime(fs_object.info.meta.mtime), 
+                    "Accessed Date": time.ctime(fs_object.info.meta.atime),
+                    "Created Date": time.ctime(fs_object.info.meta.crtime),
+                    "Size": fs_object.info.meta.size  
                 }
                 
                 if (substring):
@@ -213,16 +255,10 @@ class FileSystem:
                     sub_directory = fs_object.as_directory()
                     inode = fs_object.info.meta.addr
                     if inode not in dirs:
-                        self.recurse_files(part, fs, sub_directory, dirs, data, parent)
+                        self.recurse_dir(part, fs, sub_directory, dirs, data, parent)
                     parent.pop(-1)
 
             except IOError:
                 pass
         dirs.pop(-1)
         return data
-
-    @staticmethod
-    def convert_time(ts: int):
-        if str(ts) == "0":
-            return ""
-        return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')

@@ -1,4 +1,5 @@
 import hashlib, os, json
+from definitions import ROOT_DIR
 
 class DriveHash:
     def __init__(self, file_path, fs_object=None):
@@ -66,12 +67,12 @@ class DriveHash:
     def save_hash_to_file(self, partition=0, start_offset=None, output_dir='output', output_filename='hashes.txt'):
         # Create a dictionary to store the file details
         if self.fs_object == None:
-            md5_hash = self.direct_md5_hash
-            sha1_hash = self.direct_sha1_hash
+            md5_hash = self.direct_md5_hash()
+            sha1_hash = self.direct_sha1_hash()
         else:
-            md5_hash = self.md5_hash
-            sha1_hash = self.sha1_hash
-            
+            md5_hash = self.md5_hash()
+            sha1_hash = self.sha1_hash()
+         
         file_details = {
             "Partition": partition,
             "File": self.file_path,
@@ -81,9 +82,11 @@ class DriveHash:
         }
 
         # Convert the dictionary to a JSON object
-        json_output = json.dumps(file_details, indent=4)
+        output_dir = f"{ROOT_DIR}/{output_dir}"
         if not (os.path.exists(output_dir)):
             os.makedirs(output_dir)
             
         with open(os.path.join(output_dir, output_filename), "a") as hash_file:
-            hash_file.write(json_output)
+            # Convert the dictionary to a JSON string
+            json.dump(file_details, hash_file, indent=4)
+            hash_file.write("\n")

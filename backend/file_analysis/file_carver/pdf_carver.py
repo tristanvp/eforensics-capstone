@@ -45,6 +45,7 @@ def find_pdf_footer(data, start_offset):
     return footer_offset
 
 def detect_pdf_files(data, output_dir, user_specified_size=1000000):
+    carved_files = []
     """Carve the PDF file based on the algorithm steps."""
     header_offset = find_pdf_header(data)
     if header_offset == -1:
@@ -64,8 +65,8 @@ def detect_pdf_files(data, output_dir, user_specified_size=1000000):
         if file_size:
             print(f"Carving linearized PDF of size {file_size} bytes.")
             carved_data = data[header_offset:header_offset + file_size]
-            save_carved_file(carved_data, output_dir, header_offset, 'pdf')
-            return
+            carved_files.append(save_carved_file(carved_data, output_dir, header_offset, 'pdf'))
+            return carved_files
         else:
             print("Unable to determine file size from linearized data.")
 
@@ -75,15 +76,17 @@ def detect_pdf_files(data, output_dir, user_specified_size=1000000):
         print("PDF footer not found. Searching until user-specified file size is reached.")
         if user_specified_size:
             carved_data = data[header_offset:header_offset + user_specified_size]
-            save_carved_file(carved_data, output_dir, header_offset, 'pdf')
+            carved_files.append(save_carved_file(carved_data, output_dir, header_offset, 'pdf'))
         else:
             print("No user-specified size provided.")
     else:
         carved_data = data[header_offset:footer_offset + len(b'%%EOF')]
-        save_carved_file(carved_data, output_dir, header_offset, 'pdf')
+        carved_files.append(save_carved_file(carved_data, output_dir, header_offset, 'pdf'))
+        
+    return carved_files
 
 # Example usage
 def pdf_carve(filename, output_dir):
-    print("Starting PDF Carving: ")
+    print("[+] Starting PDF Carving: ")
     data = read_file(filename)
-    detect_pdf_files(data, output_dir)
+    return detect_pdf_files(data, output_dir)

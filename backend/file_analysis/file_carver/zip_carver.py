@@ -36,7 +36,8 @@ def extract_zip_files(data, local_file_headers, end_central_dirs):
     return zip_files, offsets
 
 def zip_carve(filename, output_dir):
-    print("Starting ZIP Carving: ")
+    carved_files = []
+    print("[+] Starting ZIP Carving: ")
     data = read_file(filename)
     local_file_headers, _, end_central_dirs = find_zip_signatures(data)
     
@@ -48,4 +49,6 @@ def zip_carve(filename, output_dir):
 
     for i, zip_file in enumerate(zip_files):
         starting_offset = starting_offsets[i]
-        save_carved_file(zip_file, output_dir, starting_offset, "zip")
+        carved_files.append(save_carved_file(zip_file, output_dir, starting_offset, "zip"))
+    
+    return carved_files
