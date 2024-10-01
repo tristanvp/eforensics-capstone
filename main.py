@@ -12,22 +12,34 @@ from backend.file_analysis.renamed_file import *
 from backend.file_analysis.keywords import *
 
 def main(image, img_type, part_type):
+    # all info of filesystem (ie: all files, partitions)
     fs_handler = FileSystem(image, img_type, part_type)
-    # file carving
-    FileCarver(filenames=fs_handler.unallocated_parts, output_dir="carved_files").carve()
-    
-    # recurse all files based on the filesystem
-    all_files = fs_handler.recurse_files()
+    partitions = fs_handler.list_partitions()
+    all_files = fs_handler.recurse_files() # recurse all files based on the filesystem
+    partitions_index = [file["Partition"] for file in all_files]
     fs_obj_list = [file["FS Object"] for file in all_files]
     filenames = [file["File Name"] for file in all_files]
     filepaths = [file["File Path"] for file in all_files]
-    keywords = ["r-alloc", "r-unalloc", "r-fads", "r-dads", "n-alloc", "n-unalloc", "n-frag", "n-slack", "n-fads", "n-dads"]
-    print(all_files)
+    keywords = ["r-alloc", "r-unalloc", "-fads", "r-dads", "n-alloc", "n-unalloc", "n-frag", "n-slack", "n-fads", "n-dads"]
+    
+    # mounting imager
+    mounter = ImageMount(image, img_type, len(partitions), partitions)
+    mounter.mount_partition("/mnt/71")
+
+    # hash the image file
+    DriveHash(file_path=image).save_hash_to_file()
+    
+    # hash the all files within the filesystem
+    DriveHash(file_path=filepaths, fs_object=fs_obj_list, partitions_index=partitions_index).save_hash_to_file()
+    
+    # find all renamed file 
     RenamedFileFinder(fs_obj_list=fs_obj_list, filenames=filenames, filepaths=filepaths).find_renamed_files()
+    
+    # carves file from unallocated space or data stream
+    FileCarver(filenames=fs_handler.unallocated_parts, output_dir="carved_files").carve()
+    
+    # searching for keywords in the files
     keywords_grepper = GrepKeyword(fs_obj_list=fs_obj_list, filepaths=filepaths, keywords=keywords).search()
-    if all_files != None: 
-        for file in all_files:
-            DriveHash(file["File Path"], file["FS Object"]).save_hash_to_file(partition=file["Partition"])
     
     # sus_files_discovery = SusFilesDiscovery(fs_handler)
     # sus_files_discovery.run()
@@ -50,6 +62,7 @@ if __name__ == '__main__':
                         choices=("dd", "ewf"))
     parser.add_argument("-p", help="Partition Type",
                         choices=("DOS", "GPT", "MAC", "SUN"))
+    # will need other options for 1) keywords 2)mount path
     args = parser.parse_args()
 
     if os.path.exists(args.EVIDENCE_FILE) and os.path.isfile(args.EVIDENCE_FILE):

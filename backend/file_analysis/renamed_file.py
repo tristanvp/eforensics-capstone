@@ -71,7 +71,7 @@ class RenamedFileFinder:
                 last_modified_time = time.ctime(fs_obj.info.meta.mtime)
                 file_size_bytes = fs_obj.info.meta.size
                 inode_number = fs_obj.info.meta.addr
-                md5 = DriveHash(filename, fs_obj).md5_hash()
+                md5 = DriveHash(filename, fs_obj).md5_hash(fs_obj)
                 file_properties = {
                     "no": renamed_files_counter,  # Added file number for sequential order
                     "name": filename,

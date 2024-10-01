@@ -81,8 +81,6 @@ class FileSystem:
                     print(f"Unallocated space written to {file_path}")
                     self.unallocated_parts.append(file_path)
 
-    print("No unallocated space found")
-
     def create_handle(self):
         print("[+] Opening {}".format(self.image))
         if self.img_type == "ewf":
@@ -133,6 +131,18 @@ class FileSystem:
                         'ending_offset': ending_offset,
                         'type': self._TSK_FS_TYPE_MAP.get(fs.info.ftype, "Unknown").lower()
                     })
+        else:
+            try:
+                fs = pytsk3.FS_Info(self.img_handle, offset=0)
+            except IOError:
+                _, e, _ = sys.exc_info()
+                print(f"[-] Unable to open FS:\n {e}")
+                
+            partitions.append({
+                'partition': 0,
+                'offset': 0,
+                'type': self._TSK_FS_TYPE_MAP.get(fs.info.ftype, "Unknown").lower()
+            })
                     
         return partitions
 

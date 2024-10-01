@@ -98,7 +98,7 @@ class MountManager:
 
 # class mounting E01 image
 class E01MountManager(MountManager):
-    def mount(self):
+    def mount(self, mnt_path):
         print("[+] Processing E01 File")
         if not self.img_file.endswith('.E01'):
             print("[-] Not an E01 file")
@@ -112,14 +112,21 @@ class E01MountManager(MountManager):
             except Exception as e:
                 print(f"Unable to create Temp Dir: {e}")
                 sys.exit()
+                
+        if not os.path.exists(mnt_path):
+            try:
+                os.makedirs(mnt_path)
+            except Exception as e:
+                print(f"Unable to create Mount Dir: {e}")
+                sys.exit()
 
         try:
             retcode = subprocess.call(f'ewfmount {self.img_file} {ewf_path}', shell=True)
             if retcode != 0:
                 sys.exit()
-            print(f"[+] Mounted E01 File at {ewf_path}/ewf1")
-            print(f"   [-] To unmount run 'sudo umount {ewf_path}'")
-            return f'{ewf_path}/ewf1'
+            retcode = subprocess.call(f"sudo mount -o ro,show_sys_files,streams_interface=windows {ewf_path}/ewf1 {mnt_path}", shell=True)
+            print(f"[+] Mounted E01 File at {mnt_path}")
+            print(f"   [-] To unmount run 'sudo umount {mnt_path}'")
         except Exception as e:
             print(f"Failed to mount E01 File: {e}")
             sys.exit()
@@ -130,23 +137,24 @@ class ImageMount:
         self.file_type = file_type
         self.part_count = part_count
         self.part_data = part_data
-        self.mount_manger = self._create_mount_manager(file_path, file_type)
+        self.mount_manager = self._create_mount_manager(file_path, file_type)
 
     def _create_mount_manager(self, file_path: str, file_type: str):
         file_type = file_type.lower()
         if file_type == 'dd':
             return MountManager(file_path)
-        elif file_type == 'e01':
+        elif file_type == 'ewf':
             return E01MountManager(file_path)
         # Add other file types as needed
         else:
             raise ValueError("Unsupported file type")
 
     def mount_partition(self, mount_path):
-        if (type(self.mount_manger) == MountManager and self.part_count == 1):
-            self.mount_manger.mount_single(mount_path)
-        if (type(self.mount_manger) == MountManager and self.part_count > 1):
-            self.mount_manger.mount_multi(mount_path, self.part_count, self.part_data)
-        if (type(self.mount_manger) == E01MountManager):
-            self.mount_manger.mount()
-    
+        if (issubclass(type(self.mount_manager), E01MountManager)):
+            self.mount_manager.mount(mount_path)
+        elif (issubclass(type(self.mount_manager), MountManager) and self.part_count == 1):
+            self.mount_manager.mount_single(mount_path)
+        elif (issubclass(type(self.mount_manager), MountManager) and self.part_count > 1):
+            self.mount_manager.mount_multi(mount_path, self.part_count, self.part_data)
+            
+        

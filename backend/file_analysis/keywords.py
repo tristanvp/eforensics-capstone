@@ -15,15 +15,15 @@ class GrepKeyword:
                 # Only collect ADS (skip the main $DATA stream)
                 if stream_name and stream_name != "$DATA":
                     ads_attributes.append(attr)
-                    
+                             
         return ads_attributes
 
     def search(self):
         print(f"Searching for keywords: {', '.join(self.keywords)}")
         fs_obj_filepath_list = list(zip(self.fs_obj_list, self.filepaths))
-        for fs_obj_filename_filepath in fs_obj_filepath_list:
-            fs_obj = fs_obj_filename_filepath[0]
-            filepath = fs_obj_filename_filepath[1]
+        for fs_obj_filepath in fs_obj_filepath_list:
+            fs_obj = fs_obj_filepath[0]
+            filepath = fs_obj_filepath[1]
             self.search_in_file(file_entry=fs_obj, file_path=filepath)
 
     def search_in_file(self, file_entry: pytsk3.File, file_path: str):
@@ -38,7 +38,7 @@ class GrepKeyword:
                 self.read_stream(file_entry, file_path, ads_attribute)
                 
         except Exception as e:
-            print(f"Error reading file {file_path}: {e}")
+            print(f"[-] Error reading file {file_path}: {e}")
 
     def read_stream(self, file_entry: pytsk3.File, file_path: str, ads_attribute=None):
         try:
