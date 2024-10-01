@@ -1,74 +1,82 @@
 from __future__ import print_function
 import argparse
+from datetime import datetime
 import os
 import sys
+from backend.utility.drive_hash import *
 from backend.utility.image_mount import *
 from backend.utility.filesystem import *
 from backend.file_analysis.sus_files_discovery import *
-from backend.file_analysis.renamed_file_finder import RenamedFileFinder
+from backend.file_analysis.file_carver.file_carver import FileCarver
+from backend.file_analysis.renamed_file import *
+from backend.file_analysis.keywords import *
 from backend.utility.report_generator import ReportGenerator
 
 def main(image, img_type, part_type):
-    # Main Setup
+    # all info of filesystem (ie: all files, partitions)
     fs_handler = FileSystem(image, img_type, part_type)
-
-    # SusFile call
-    sus_files_discovery = SusFilesDiscovery(fs_handler)
-    discovered_files = sus_files_discovery.run()
-
-    # Discovered Files call
-    print("Discovered Files:")
-    for file_info in discovered_files:
-        print(file_info)
-
-    # Renamed file finder call and list print for testing
-    renamed_file_finder = RenamedFileFinder(fs_handler)
-    renamed_files = renamed_file_finder.run()
-    for file in renamed_files:
-        for key, value in file.items():
-            print(f'{key}: {value}')
-        print('')
-
-    # Partitions call (High level)
     partitions = fs_handler.list_partitions()
-    print("Partitions:")
-    for partition in partitions:
-        print(partition)
-    print("Length of partitions: " + str(len(partitions)))
+    all_files = fs_handler.recurse_files() # recurse all files based on the filesystem
+    partitions_index = [file["Partition"] for file in all_files]
+    fs_obj_list = [file["FS Object"] for file in all_files]
+    filenames = [file["File Name"] for file in all_files]
+    filepaths = [file["File Path"] for file in all_files]
+    keywords = ["r-alloc", "r-unalloc", "-fads", "r-dads", "n-alloc", "n-unalloc", "n-frag", "n-slack", "n-fads", "n-dads"]
+    
+    # mounting imager
+    mounter = ImageMount(image, img_type, len(partitions), partitions)
+    mounter.mount_partition("/mnt/71")
 
-    # Mounting logic for files w/o partitions 
-    if len(partitions) == 1:
-        MountManager(image).mount_single("/mnt")
-    else:
-        MountManager(image).mount_multi("/mnt", len(partitions), partitions)
-
-    # Docxtpl report content preparation
+    # hash the image file
+    DriveHash(file_path=image).save_hash_to_file()
+    
+    # hash the all files within the filesystem
+    DriveHash(file_path=filepaths, fs_object=fs_obj_list, partitions_index=partitions_index).save_hash_to_file()
+    
     context = {
-        'investigated_device': "Gilbert's 256 terabyte hard drive",  # Temporary static title
-        'renamed_files': renamed_files,
-        # Insert other file analysis results here
-        'suspicious_files': discovered_files # For example
+        'investigated_device': 'image name',
+        # Find all renamed files
+        'renamed_files': RenamedFileFinder(fs_obj_list=fs_obj_list, filenames=filenames, filepaths=filepaths).find_renamed_files(),
+        # carves file from unallocated space or data stream
+        'carved_files': FileCarver(filenames=fs_handler.unallocated_parts, output_dir="carved_files").carve(),
+        # searching for keywords in the files
+        'keywords': GrepKeyword(fs_obj_list=fs_obj_list, filepaths=filepaths, keywords=keywords).search()
     }
 
     # Report Generation
     template_path = r'backend\\utility\\template_eforensics_analysis_report.docx'
-    output_path = r'test.docx'
+    output_path = r'Digital Forensics Report.docx'
     report_generator = ReportGenerator(template_path, output_path)
     report_generator.generate_report(context)
     print("Report generation complete.")
+
+    # sus_files_discovery = SusFilesDiscovery(fs_handler)
+    # sus_files_discovery.run()
+    
+    # partitions = fs_handler.list_partitions()
+    # print(partitions)
+    # print("Length of partitions: " + str(len(partitions)))
+    # mounter = ImageMount(image, img_type, len(partitions), partitions)
+    # mounter.mount_partition("/mnt")
+    # print(mounter.mount_manger.mnt_path)
+    # for mnt_path in mounter.mount_manger.mnt_path:
+    #     file_path = f"{mnt_path}/"
+    #     DriveHash(mnt_p)
+    # print(FileCarver(filename=image, output_dir="carved_files").carve())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("EVIDENCE_FILE", help="Evidence file path")
     parser.add_argument("TYPE", help="Type of Evidence",
-                        choices=("raw", "ewf"))
+                        choices=("dd", "ewf"))
     parser.add_argument("-p", help="Partition Type",
                         choices=("DOS", "GPT", "MAC", "SUN"))
+    # will need other options for 1) keywords 2)mount path
     args = parser.parse_args()
 
     if os.path.exists(args.EVIDENCE_FILE) and os.path.isfile(args.EVIDENCE_FILE):
         main(args.EVIDENCE_FILE, args.TYPE, args.p)
     else:
-        print("[-] Supplied input file {} does not exist or is not a file".format(args.EVIDENCE_FILE))
+        print("[-] Supplied input file {} does not exist or is not a "
+              "file".format(args.EVIDENCE_FILE))
         sys.exit(1)
-
