@@ -4,7 +4,6 @@ from datetime import datetime
 from definitions import ROOT_DIR
 from backend.image.ewf_image import EWFImgInfo
 
-
 class FileSystem:
     _TSK_FS_TYPE_MAP = {
         pytsk3.TSK_FS_TYPE_EXFAT: 'exFAT',

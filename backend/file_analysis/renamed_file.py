@@ -1,7 +1,8 @@
 import os
 import io
 import pytsk3
-import filetype, time
+import filetype
+from datetime import datetime
 from backend.utility.drive_hash import DriveHash
 from backend.utility.filesystem import FileSystem
 
@@ -28,7 +29,6 @@ class RenamedFileFinder:
     # Check file signature and compare it to the file extension
     def check_file_signature(self, entry, file_name):
         try:
-            # Check if the file size is greater than 0 before reading
             if entry.info.meta.size > 0:
                 file_data = entry.read_random(0, entry.info.meta.size)
                 kind = filetype.guess(io.BytesIO(file_data))
@@ -44,7 +44,6 @@ class RenamedFileFinder:
                 file_ext = os.path.splitext(file_name)[1].lower()
                 true_ext = mime.split('/')[-1]
 
-                # Return true extension if there is a mismatch
                 if not file_ext.endswith(true_ext):
                     return true_ext
             else:
@@ -54,7 +53,6 @@ class RenamedFileFinder:
         except Exception as e:
             print(f"Error reading file {file_name}: {e}")
             return None
-
         
     def find_renamed_files(self):
         renamed_files = []
@@ -66,9 +64,9 @@ class RenamedFileFinder:
             filepath = fs_obj_filename_filepath[2]
             true_extension = self.check_file_signature(fs_obj, filename)
             if true_extension:
-                created_time = time.ctime(fs_obj.info.meta.crtime)
-                last_accessed_time = time.ctime(fs_obj.info.meta.atime)
-                last_modified_time = time.ctime(fs_obj.info.meta.mtime)
+                created_time = datetime.fromtimestamp(fs_obj.info.meta.crtime).isoformat()
+                last_accessed_time = datetime.fromtimestamp(fs_obj.info.meta.atime).isoformat()
+                last_modified_time = datetime.fromtimestamp(fs_obj.info.meta.mtime).isoformat()
                 file_size_bytes = fs_obj.info.meta.size
                 inode_number = fs_obj.info.meta.addr
                 md5 = DriveHash(filename, fs_obj).md5_hash(fs_obj)
