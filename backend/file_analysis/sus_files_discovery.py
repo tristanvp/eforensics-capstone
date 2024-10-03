@@ -6,12 +6,11 @@ class SusFilesDiscovery:
     def __init__(self, fs: FileSystem):
         self.fs = fs
         self.suspicious_files = []
-        self.suspicious_types = ['.exe', '.dll', '.bat', '.ps1', '.sh']  # Example suspicious types
-
+        self.run()
+    
     def run(self):
         self.recurse_interesting_extension_files()
         self.recurse_dollar_i_files()
-        return self.suspicious_files
 
     def recurse_interesting_extension_files(self):
         interesting_file_extensions = ['.config', '.exe', '.db', '.sqlite', '.sqlite3', '.log', '.xml', '.tmp', '.dmp', '.txt', '.sh']

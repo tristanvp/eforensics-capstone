@@ -3,6 +3,8 @@ import sys, os, time
 from datetime import datetime
 from definitions import ROOT_DIR
 from backend.image.ewf_image import EWFImgInfo
+from backend.image.l01_image import *
+from backend.utility.drive_hash import *
 
 
 class FileSystem:
@@ -96,6 +98,21 @@ class FileSystem:
 
             # Open PYTSK3 handle on EWF Image
             self.img_handle = EWFImgInfo(ewf_handle)
+            
+        elif self.img_type == "l01":
+            try:
+                filenames = pyewf.glob(self.image)
+            except IOError:
+                _, e, _ = sys.exc_info()
+                print("[-] Invalid L01 format:\n {}".format(e))
+                sys.exit(2)
+
+            l01_handle = pyewf.handle()
+            l01_handle.open(filenames)
+
+            # Open PYTSK3 handle on EWF Image
+            self.img_handle = L01ImgInfo(ewf_handle)
+            
         else:
             self.img_handle = pytsk3.Img_Info(self.image)
             
@@ -136,13 +153,13 @@ class FileSystem:
                 fs = pytsk3.FS_Info(self.img_handle, offset=0)
             except IOError:
                 _, e, _ = sys.exc_info()
-                print(f"[-] Unable to open FS:\n {e}")
-                
+                print(f"[-] Unable to open FS:\n {e}")   
+            
             partitions.append({
                 'partition': 0,
-                'offset': 0,
-                'type': self._TSK_FS_TYPE_MAP.get(fs.info.ftype, "Unknown").lower()
+                'offset': 0
             })
+        
                     
         return partitions
 
@@ -171,19 +188,20 @@ class FileSystem:
     
     def recurse_files(self, substring="", path="/", logic="contains", case=False) -> list:
         files = []
+        counter = 0  # Initialize the counter here
         for i, fs in enumerate(self.fs):
             try:
                 root_dir = fs.open_dir(path)
             except IOError:
                 continue
-            files += self.recurse_dir(i, fs, root_dir, [], [], [""], substring, logic, case)
+            files += self.recurse_dir(i, fs, root_dir, [], [], [""], substring, logic, case, counter)
 
         if files == []:
             return None
         else:
             return files
         
-    def recurse_dir(self, part: int, fs: pytsk3.FS_Info, root_dir: pytsk3.Directory, dirs: list, data: list, parent: list, substring=None, logic=None, case=False):
+    def recurse_dir(self, part: int, fs: pytsk3.FS_Info, root_dir: pytsk3.Directory, dirs: list, data: list, parent: list, substring=None, logic=None, case=False, counter=0):
         parent = [p.decode("utf-8") if isinstance(p, bytes) else p for p in parent]
         dirs.append(root_dir.info.fs_file.meta.addr)
         for fs_object in root_dir:
@@ -199,24 +217,27 @@ class FileSystem:
                         
                 if fs_object.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
                     f_type = "DIR"
-                    file_ext = ""
+                    file_xt = ""
                 else:
                     f_type = "FILE"
                     file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
                 
                 file_info = {
-                    "Partition": part,
-                    "File Name": file_name, 
-                    "File Path": file_path,
-                    "FS Object": fs_object, 
-                    "File Extension": file_ext, 
-                    "Modified Date": time.ctime(fs_object.info.meta.mtime), 
-                    "Accessed Date": time.ctime(fs_object.info.meta.atime),
-                    "Created Date": time.ctime(fs_object.info.meta.crtime),
-                    "Size": fs_object.info.meta.size  
+                    "no": counter,
+                    "partition": part,
+                    "name": file_name, 
+                    "path": file_path,
+                    "inode": fs_object.info.meta.addr,
+                    "fs object": fs_object, 
+                    "extension": file_ext, 
+                    "modified": time.ctime(fs_object.info.meta.mtime), 
+                    "accessed": time.ctime(fs_object.info.meta.atime),
+                    "created": time.ctime(fs_object.info.meta.crtime),
+                    "bytes": fs_object.info.meta.size, 
+                    "md5": DriveHash(file_name, fs_object).md5_hash(fs_object)  
                 }
-                
-                if (substring):
+                counter += 1
+                if (substring != None):
                     if f_type == "FILE":
                         if logic.lower() == 'contains':
                             if case is False:
@@ -258,6 +279,7 @@ class FileSystem:
                             sys.stderr.write("[-] Warning invalid logic {} provided\n".format(logic))
                             sys.exit()
                 else:
+                    print("substring not exists")
                     data.append(file_info)
 
                 if f_type == "DIR":
@@ -265,7 +287,7 @@ class FileSystem:
                     sub_directory = fs_object.as_directory()
                     inode = fs_object.info.meta.addr
                     if inode not in dirs:
-                        self.recurse_dir(part, fs, sub_directory, dirs, data, parent)
+                        self.recurse_dir(part, fs, sub_directory, dirs, data, parent, substring=substring, logic=logic)
                     parent.pop(-1)
 
             except IOError:

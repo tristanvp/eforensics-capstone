@@ -30,13 +30,16 @@ def read_file(filename):
 def get_file_metadata(file_path):
     try:
         file_stat = os.stat(file_path)
+        md5 = DriveHash(file_path).direct_md5_hash(file_path)
         return {
-            'filename': os.path.basename(file_path),
+            'name': os.path.basename(file_path),
             'inode': file_stat.st_ino,
             'path': os.path.abspath(file_path),
-            'created_day': datetime.fromtimestamp(file_stat.st_ctime).strftime('%Y-%m-%d %H:%M:%S'),
-            'accessed_day': datetime.fromtimestamp(file_stat.st_atime).strftime('%Y-%m-%d %H:%M:%S'),
-            'modified_day': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+            'created': datetime.fromtimestamp(file_stat.st_ctime).strftime('%Y-%m-%d %H:%M:%S'),
+            'accessed': datetime.fromtimestamp(file_stat.st_atime).strftime('%Y-%m-%d %H:%M:%S'),
+            'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+            'bytes': os.path.getsize(file_path),
+            'md5': md5
         }
     except FileNotFoundError:
         return None
@@ -44,10 +47,13 @@ def get_file_metadata(file_path):
 def metadata_carved_files(carved_files):
     # Simulate the carving process, which gives us the carved file paths
     carved_files_metadata = []
-
+    
     # Loop through the list of carved files to capture metadata
-    for file_path in carved_files:
+    for idx, file_path in enumerate(carved_files):
         file_metadata = get_file_metadata(file_path)
         if file_metadata:
+            # Add the 'id' field
+            file_metadata['no'] = idx
             carved_files_metadata.append(file_metadata)
+            
     return carved_files_metadata
