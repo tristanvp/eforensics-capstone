@@ -102,6 +102,7 @@ class GrepKeyword:
                                     "no": self.counter,  # Use the global counter
                                     "name": stream_name,
                                     "path": stream_name,
+                                    "keyword": keyword,
                                     "created": created_time,
                                     "accessed": last_accessed_time,
                                     "modified": last_modified_time,
