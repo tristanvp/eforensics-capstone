@@ -39,8 +39,9 @@ Activate environment
 source py3-env/bin/activate
 ```
 
-CD into the project folder, and install the project repository using this command
+Redirect into the project folder, and install the project repository using this command
 ```bash
+cd Foren6
 git clone https://github.com/tristanvp/eforensics-capstone.git
 cd eforensics-capstone
 ```
