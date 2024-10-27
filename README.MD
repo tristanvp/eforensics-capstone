@@ -42,6 +42,7 @@ source py3-env/bin/activate
 CD into the project folder, and install the project repository using this command
 ```bash
 git clone https://github.com/tristanvp/eforensics-capstone.git
+cd eforensics-capstone
 ```
 
 Install all libraries, using:
